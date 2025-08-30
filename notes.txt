@@ -1,0 +1,6 @@
+O que seria uma segurança de sandbox?
+porque _ no começo do nome da função? Ex.: _read_text_file
+
+O conteúdo abaixo não pode ser inserido em config
+ALLOWED_MIME = {"text/plain", "application/pdf"}
+ALLOWED_EXT  = {".txt", ".pdf"}

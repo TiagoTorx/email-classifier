@@ -1,0 +1,195 @@
+<!-- html -->
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Classificador de Emails/Docs</title>
+    <style>
+        :root { --fg:#111827; --muted:#50565e; --border:#e5e7eb; --primary:#2563eb; }
+        * { box-sizing: border-box; }
+        body { font-family: system-ui, Arial, sans-serif; margin: 2rem; color: var(--fg); }
+        h1 { margin: 0 0 1rem 0; }
+        h3 { margin: 0 0 .6rem 0; }
+        .card { border: 1px solid var(--border); border-radius: 12px; padding: 1rem; margin-bottom: 1.2rem; }
+        .row { display:flex; gap:1rem; align-items:flex-start; flex-wrap:wrap; }
+        textarea { width:100%; height: 140px; padding:.5rem; border:1px solid var(--border); border-radius:8px; font: inherit; }
+        input[type=file]{ width:100% }
+        button { padding:.6rem 1rem; border-radius:8px; border:1px solid #cbd5e1; background:#fff; cursor:pointer; }
+        pre { background:#111; color:#eee; padding:1rem; border-radius:8px; overflow:auto; }
+        details summary { cursor: pointer; }
+        .res-card { display: grid; gap: .6rem; }
+        .badge { display:inline-block; padding:.2rem .6rem; border-radius:9999px; font-weight:600; font-size:.9rem; }
+        .badge.produtivo { background:#e7f7ef; color:#065f46; border:1px solid #a7f3d0; }
+        .badge.improdutivo { background:#feeeee; color:#7f1d1d; border:1px solid #fecaca; }
+        .chip { display:inline-block; padding:.15rem .5rem; border:1px solid #d1d5db; border-radius:9999px; font-size:.85rem; }
+        .progress { height:8px; background:#e5e7eb; border-radius:9999px; overflow:hidden; }
+        .progress > div { height:100%; width:0%; background:#2563eb; transition:width .3s ease; }
+        .row-space { display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; }
+        .muted { color:#50565e; font-size:.95rem; }
+        .reasons { margin:.2rem 0 0 1rem; }
+        .reply label { font-weight:600; display:block; margin-top:.5rem; }
+        .reply textarea { width:100%; height:96px; padding:.5rem; border:1px solid #d1d5db; border-radius:8px; }
+        .actions { display:flex; gap:.5rem; margin-top:.4rem; }
+        .actions button { padding:.45rem .8rem; border:1px solid #cbd5e1; border-radius:8px; cursor:pointer; }
+    </style>
+</head>
+<body data-max-upload-mb="{{ max_upload_mb }}">
+    <h1>Classificador AutoU: Produtivo x Improdutivo</h1>
+
+    <div class="card">
+        <h3>Colar texto</h3>
+        <form id="textForm">
+        <textarea name="text" placeholder="Cole aqui o conteúdo do email/documento..."></textarea><br/>
+        <button type="submit">Classificar texto</button>
+        </form>
+    </div>
+
+    <div class="card">
+        <h3>Enviar arquivo (.txt ou .pdf)</h3>
+        <form id="fileForm">
+        <input type="file" name="file" accept=".txt,.pdf,application/pdf"/>
+        <br/><br/>
+        <button type="submit">Classificar arquivo</button>
+        </form>
+    </div>
+
+    <div class="card">
+        <h3>Resultado</h3>
+        <div id="resultCard" class="res-card" aria-live="polite"></div>
+
+        <details>
+            <summary>Ver JSON bruto</summary>
+            <pre id="out">{}</pre>
+        </details>
+    </div>
+
+    <script>
+        const MAX_UPLOAD_MB = Number(document.body.dataset.maxUploadMb || '5');
+        const MAX_UPLOAD_BYTES = MAX_UPLOAD_MB * 1024 * 1024;
+
+        async function postForm(url, form) {
+            //const data = await res.json();
+            const res = await fetch(url, { method: "POST", body: new FormData(form) });
+            const ct = res.headers.get("content-type") || "";
+            let data;
+            if (ct.includes("application/json")) {
+                data = await res.json();
+            } else {
+                const text = await res.text();
+                try { data = JSON.parse(text); }
+                catch { throw new Error(text || "Resposta não-JSON do servidor");}
+            }
+            if (!res.ok) throw new Error(data.detail || JSON.stringify(data));
+            return data;
+        }
+
+        const out = document.getElementById('out');
+        const resultCard = document.getElementById('resultCard');
+
+        function escapeHtml(s){
+            return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+        }
+
+        function renderResult(data, metaTitle) {
+            const cat = (data.category || '').toLowerCase();
+            const subtype = data.subtype || '—';
+            const conf = Number(data.confidence ?? 0);
+            const confPct = Math.max(0, Math.min(100, Math.round(conf * 100)));
+            const reasons = (data.reasons || []).map(r => `<li>${escapeHtml(r)}</li>`).join('');
+
+            resultCard.innerHTML = `
+            <div class="row-space">
+                <span class="badge ${cat}">${escapeHtml(data.category)}</span>
+                <span class="chip">${escapeHtml(subtype)}</span>
+                ${metaTitle ? `<span class="muted">• Fonte: ${escapeHtml(metaTitle)}</span>` : ``}
+            </div>
+
+            <div class="muted">${escapeHtml(data.summary || '')}</div>
+
+            <div class="progress" title="Confiança">
+                <div style="width:${confPct}%"></div>
+            </div>
+            <div class="muted">Confiança: ${confPct}%</div>
+
+            ${(reasons && reasons.length)
+                ? `<div class="muted">Motivos:</div><ul class="reasons">${reasons}</ul>`
+                : ``}
+
+            <div class="reply">
+                <label>Resposta sugerida</label>
+                <textarea id="replyText" readonly>${escapeHtml(data.suggested_reply || '')}</textarea>
+                <div class="actions">
+                <button id="copyBtn" type="button">Copiar</button>
+                <button id="clearBtn" type="button">Limpar</button>
+                </div>
+            </div>
+            `;
+
+            const copyBtn = document.getElementById('copyBtn');
+            copyBtn?.addEventListener('click', () => {
+            const txt = document.getElementById('replyText')?.value || '';
+            navigator.clipboard.writeText(txt);
+            copyBtn.textContent = 'Copiado!';
+            setTimeout(() => (copyBtn.textContent = 'Copiar'), 1200);
+            });
+
+            document.getElementById('clearBtn')?.addEventListener('click', () => {
+            resultCard.innerHTML = '';
+            out.textContent = '{}';
+            });
+        }
+
+        document.getElementById('textForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = e.target.querySelector('button[type=submit]');
+            btn.disabled = true;
+
+            resultCard.innerHTML = '<div class="muted">Classificando...</div>';
+            try {
+            const data = await postForm('/classify-text', e.target);
+            out.textContent = JSON.stringify(data, null, 2);   // mantém JSON
+            renderResult(data, 'Texto colado');
+            } catch (err) {
+            resultCard.innerHTML = `<div class="muted">Erro: ${escapeHtml(err.message)}</div>`;
+            out.textContent = "Erro: " + err.message;
+            } finally {
+                btn.disabled = false;
+            }
+        });
+
+        document.getElementById('fileForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = e.target.querySelector('button[type=submit]');
+            const fileInput = e.target.querySelector('input[type=file]');
+            const file = fileInput.files[0];
+
+            if (!file) {
+                resultCard.innerHTML = '<div class="muted">Selecione um arquivo.</div>';
+                return; // <- pare aqui
+            }
+            if (file.size > MAX_UPLOAD_BYTES) {
+                resultCard.innerHTML = `<div class="muted">Arquivo excede ${MAX_UPLOAD_MB} MB.</div>`;
+                out.textContent = `Erro: Arquivo excede ${MAX_UPLOAD_MB} MB (checagem do navegador).`;
+                return; // <- ESSENCIAL para não enviar
+            }
+
+            btn.disabled = true;
+            resultCard.innerHTML = '<div class="muted">Classificando...</div>';
+            try {
+                const data = await postForm('/classify-file', e.target);
+                out.textContent = JSON.stringify(data, null, 2);
+                // use o nome do arquivo do próprio objeto file
+                renderResult(data, file.name || 'Arquivo enviado');
+            } catch (err) {
+                const msg = String(err?.message || err);
+                resultCard.innerHTML = `<div class="muted">Erro: ${escapeHtml(msg)}</div>`;
+                out.textContent = "Erro: " + msg;
+                console.error(err);
+            } finally {
+                btn.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>
