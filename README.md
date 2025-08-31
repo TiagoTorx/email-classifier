@@ -46,12 +46,12 @@ make dev
 # abra http://127.0.0.1:8000
 ```
 ## Variáveis de ambiente principais
-
+```
 GEMINI_API_KEY (obrigatória)
 ALLOWED_ORIGINS_RAW (lista separada por vírgula; ex: http://localhost:8000,http://127.0.0.1:8000)
 MAX_UPLOAD_MB (padrão 5)
 REQUEST_TIMEOUT_S (padrão 20)
-
+```
 ## Testes
 ```
 make test
@@ -73,5 +73,6 @@ docker run -p 8080:8080 \
 - PDFs escaneados (imagem) podem não ter texto extraível; o app retorna um fallback explicando.
 
 - Se você viu ModuleNotFoundError: No module named 'app', quase sempre é: (1) rodou fora da raiz do projeto, (2) não ativou a venv, (3) misturou versões de Python. Execute os comandos na raiz e ative a venv.
+
 
 - Para CORS, garanta que o ALLOWED_ORIGINS_RAW contém o host de onde você acessa.
