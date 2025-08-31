@@ -1,4 +1,8 @@
-fastapi[standard]==0.116.1
-pydantic-settings==2.10.1
-pypdf==6.0.0
-google-genai==1.32.0
+fastapi[standard]
+uvicorn
+gunicorn
+pydantic-settings
+python-multipart
+pypdf
+google-genai
+jinja2
