@@ -1,4 +1,4 @@
-.venv
+.venv/
 __pycache__/
 *.py[oc]
 .git
@@ -9,3 +9,7 @@ __pycache__/
 .mypy_cache/
 htmlcov/
 tests/
+samples/
+public/
+.firebase/
+envs.yaml

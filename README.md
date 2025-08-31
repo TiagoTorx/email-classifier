@@ -57,6 +57,8 @@ REQUEST_TIMEOUT_S (padrão 20)
 make test
 # ou: .venv/bin/pytest -q
 ```
+## Samples
+Na pasta é possível encontrar alguns arquivos .pdf e .txt para testar no app web.
 
 ## Docker (opcional)
 ```
