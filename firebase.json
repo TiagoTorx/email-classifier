@@ -1,9 +1,13 @@
 {
-    "hosting": {
-        "public": "public",
-        "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
-        "rewrites": [
-            { "source": "**", "run": { "serviceId": "email-classifier", "region": "southamerica-east1" } }
-        ]
-    }
+  "hosting": {
+    "rewrites": [
+      {
+        "source": "**",
+        "run": {
+          "serviceId": "email-classifier",
+          "region": "southamerica-east1"
+        }
+      }
+    ]
+  }
 }

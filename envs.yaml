@@ -1,0 +1,1 @@
+ALLOWED_ORIGINS_RAW: "https://'"$PROJECT_ID"'.web.app,https://'"$PROJECT_ID"'.firebaseapp.com"

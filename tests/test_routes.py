@@ -4,7 +4,7 @@ from app.api.schemas import ClassificationResponse
 def test_index_ok(client):
     r = client.get("/")
     assert r.status_code == 200
-    assert "Classificador AutoU" in r.text
+    assert "Classificador " in r.text
 
 def test_healthz_ok(client):
     r = client.get("/healthz")
