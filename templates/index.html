@@ -57,272 +57,322 @@
     </style>
     </head>
 
-    <body data-max-upload-mb="{{ max_upload_mb }}" data-max-chars="{{ max_chars }}">
-    <div class="container">
-        <header class="hero">
-            <h1>Classificador de Emails/Docs</h1>
-            <p class="subtitle">Cole um texto ou envie um PDF/TXT para classificar como <strong>produtivo</strong> ou <strong>improdutivo</strong>, com resumo, motivos e resposta sugerida.</p>
-            <ol class="steps">
-                <li><strong>Passo 1:</strong> cole o conteúdo <em>ou</em> envie um arquivo.</li>
-                <li><strong>Passo 2:</strong> clique em <em>Classificar</em>.</li>
-                <li><strong>Passo 3:</strong> copie a resposta sugerida.</li>
-            </ol>
-        </header>
+        <body data-max-upload-mb="{{ max_upload_mb }}" data-max-chars="{{ max_chars }}">
+            <div class="container">
+                <header class="hero">
+                    <h1>Classificador de Emails/Docs</h1>
+                    <p class="subtitle">Cole um texto ou envie um PDF/TXT para classificar como <strong>produtivo</strong> ou <strong>improdutivo</strong>, com resumo, motivos e resposta sugerida.</p>
+                    <ol class="steps">
+                        <li><strong>Passo 1:</strong> cole o conteúdo <em>ou</em> envie um arquivo.</li>
+                        <li><strong>Passo 2:</strong> clique em <em>Classificar</em>.</li>
+                        <li><strong>Passo 3:</strong> copie a resposta sugerida.</li>
+                    </ol>
+                </header>
 
-        <div class="grid">
-            <div class="card">
-                <div class="row-between">
-                    <h3>Colar texto</h3>
-                    <div class="counter" id="charCounter">0 / {{ max_chars }}</div>
-                </div>
-                <p class="hint">Conteúdo será limitado a {{ max_chars }} caracteres.</p>
-                <form id="textForm" aria-labelledby="textLabel">
-                    <label id="textLabel" for="textInput">Texto</label>
-                    <textarea id="textInput" name="text" placeholder="Cole aqui o conteúdo do email/documento…"></textarea>
-                    <div style="margin-top:8px">
-                        <button id="textSubmit" class="btn-primary" type="submit" disabled>Classificar texto</button>
+                <div class="grid">
+                    <div class="card">
+                        <div class="row-between">
+                            <h3>Colar texto</h3>
+                            <div class="counter" id="charCounter">0 / {{ max_chars }}</div>
+                        </div>
+                        <p class="hint">Conteúdo será limitado a {{ max_chars }} caracteres.</p>
+                        <form id="textForm" aria-labelledby="textLabel">
+                            <label id="textLabel" for="textInput">Texto</label>
+                            <textarea id="textInput" name="text" placeholder="Cole aqui o conteúdo do email/documento…"></textarea>
+                            <div style="margin-top:8px">
+                                <button id="textSubmit" class="btn-primary" type="submit" disabled>Classificar texto</button>
+                            </div>
+                        </form>
                     </div>
-                </form>
-            </div>
 
-            <div class="card">
-                <h3>Enviar arquivo (.txt ou .pdf)</h3>
-                <p class="hint">Tamanho máximo: {{ max_upload_mb }} MB.</p>
-                <form id="fileForm" aria-labelledby="fileLabel">
-                    <label id="fileLabel" for="fileInput">Arquivo</label>
-                    <input id="fileInput" type="file" name="file" accept=".txt,.pdf,application/pdf"/>
-                    <div style="margin-top:8px">
-                        <button id="fileSubmit" class="btn-primary" type="submit" disabled>Classificar arquivo</button>
+                    <div class="card">
+                        <h3>Enviar arquivo (.txt ou .pdf)</h3>
+                        <p class="hint">Tamanho máximo: {{ max_upload_mb }} MB.</p>
+                        <form id="fileForm" aria-labelledby="fileLabel">
+                            <label id="fileLabel" for="fileInput">Arquivo</label>
+                            <input id="fileInput" type="file" name="file" accept=".txt,.pdf,application/pdf"/>
+                            <div style="margin-top:8px">
+                                <button id="fileSubmit" class="btn-primary" type="submit" disabled>Classificar arquivo</button>
+                            </div>
+                        </form>
                     </div>
-                </form>
-            </div>
 
-            <div class="card" id="previewCard" style="display:none; margin-top:16px">
-                <h3>Pré-visualização do conteúdo</h3>
-                <div id="previewMeta" class="muted" style="margin-bottom:6px;"></div>
-                <div id="preview" class="preview-box" aria-live="polite"></div>
-                <div class="actions" style="margin-top:8px">
-                    <button id="clearPreviewBtn" type="button">Limpar visualização</button>
-                </div>
-            </div>
-        </div>
-
-        <div class="card" style="margin-top:16px">
-        <h3>Resultado</h3>
-        <div id="resultCard" class="res-card" aria-live="polite"></div>
-
-        <details>
-            <summary>Ver JSON bruto (opcional)</summary>
-            <pre id="out">{}</pre>
-        </details>
-        </div>
-
-        <footer>Feito para avaliação técnica — foco em simplicidade e clareza.</footer>
-    </div>
-
-    <script>
-        const MAX_UPLOAD_MB = Number(document.body.dataset.maxUploadMb || '5');
-        const MAX_UPLOAD_BYTES = MAX_UPLOAD_MB * 1024 * 1024;
-        const MAX_CHARS = Number(document.body.dataset.maxChars || '10000');
-
-        // Utils
-        function escapeHtml(s){
-            return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-            }
-            async function postForm(url, form) {
-            const res = await fetch(url, { method: "POST", body: new FormData(form) });
-            const ct = res.headers.get("content-type") || "";
-            let data;
-            if (ct.includes("application/json")) {
-                data = await res.json();
-            } else {
-                const text = await res.text();
-                try { data = JSON.parse(text); }
-                catch { throw new Error(text || "Resposta não-JSON do servidor"); }
-            }
-            if (!res.ok) throw new Error(data.detail || JSON.stringify(data));
-            return data;
-            }
-
-            const out = document.getElementById('out');
-            const resultCard = document.getElementById('resultCard');
-
-            /* === PRÉ-VISUALIZAÇÃO (novo) === */
-            const MAX_PREVIEW_CHARS = 4000;
-            const previewCard = document.getElementById('previewCard');
-            const previewMeta = document.getElementById('previewMeta');
-            const preview = document.getElementById('preview');
-            const clearPreviewBtn = document.getElementById('clearPreviewBtn');
-
-            function showPreview(text, meta = '') {
-            if (!text) {
-                previewCard.style.display = 'none';
-                preview.textContent = '';
-                previewMeta.textContent = '';
-                return;
-            }
-            if (text.length > MAX_PREVIEW_CHARS) {
-                text = text.slice(0, MAX_PREVIEW_CHARS) + `\n\n[...pré-visualização truncada em ${MAX_PREVIEW_CHARS} caracteres]`;
-            }
-            preview.textContent = text;
-            previewMeta.textContent = meta;
-            previewCard.style.display = 'block';
-            }
-
-            clearPreviewBtn?.addEventListener('click', () => showPreview('', ''));
-
-            function renderResult(data, metaTitle) {
-            const cat = (data.category || '').toLowerCase();
-            const subtype = data.subtype || '—';
-            const conf = Number(data.confidence ?? 0);
-            const confPct = Math.max(0, Math.min(100, Math.round(conf * 100)));
-            const reasons = (data.reasons || []).map(r => `<li>${escapeHtml(r)}</li>`).join('');
-
-            resultCard.innerHTML = `
-                <div class="row-space">
-                    <span class="badge ${cat}">${escapeHtml(data.category)}</span>
-                    <span class="chip">${escapeHtml(subtype)}</span>
-                    ${metaTitle ? `<span class="muted">• Fonte: ${escapeHtml(metaTitle)}</span>` : ``}
-                </div>
-
-                <div class="muted">${escapeHtml(data.summary || '')}</div>
-
-                <div class="progress" title="Confiança">
-                    <div style="width:${confPct}%"></div>
-                </div>
-                <div class="muted">Confiança: ${confPct}%</div>
-
-                ${reasons
-                    ? `<div class="muted" style="margin-top:6px">Motivos:</div><ul class="reasons">${reasons}</ul>`
-                    : ``}
-
-                <div class="reply">
-                    <label for="replyText">Resposta sugerida</label>
-                    <textarea id="replyText" readonly>${escapeHtml(data.suggested_reply || '')}</textarea>
-                    <div class="actions">
-                    <button id="copyBtn" type="button">Copiar</button>
-                    <button id="clearBtn" type="button">Limpar</button>
+                    <div class="card" id="previewCard" style="display:none; margin-top:16px">
+                        <h3>Pré-visualização do conteúdo</h3>
+                        <div id="previewMeta" class="muted" style="margin-bottom:6px;"></div>
+                        <div id="preview" class="preview-box" aria-live="polite"></div>
+                        <div class="actions" style="margin-top:8px">
+                            <button id="clearPreviewBtn" type="button">Limpar visualização</button>
+                        </div>
                     </div>
                 </div>
-            `;
 
-            const copyBtn = document.getElementById('copyBtn');
-            copyBtn?.addEventListener('click', () => {
-                const txt = document.getElementById('replyText')?.value || '';
-                navigator.clipboard.writeText(txt);
-                copyBtn.textContent = 'Copiado!';
-                setTimeout(() => (copyBtn.textContent = 'Copiar'), 1200);
-            });
+                <div class="card" style="margin-top:16px">
+                <h3>Resultado</h3>
+                <div id="resultCard" class="res-card" aria-live="polite"></div>
 
-            document.getElementById('clearBtn')?.addEventListener('click', () => {
-                resultCard.innerHTML = '';
-                out.textContent = '{}';
-            });
-            }
+                <details>
+                    <summary>Ver JSON bruto (opcional)</summary>
+                    <pre id="out">{}</pre>
+                </details>
+                </div>
 
-            // TEXT FORM
-            const textForm = document.getElementById('textForm');
-            const textInput = document.getElementById('textInput');
-            const textSubmit = document.getElementById('textSubmit');
-            const charCounter = document.getElementById('charCounter');
+                <footer>Feito para avaliação técnica — foco em simplicidade e clareza.</footer>
+            </div>
 
-            function updateCounter() {
-            const len = (textInput.value || '').length;
-            charCounter.textContent = `${len} / ${MAX_CHARS}`;
-            charCounter.classList.remove('warn','max');
-            if (len >= MAX_CHARS) charCounter.classList.add('max');
-            else if (len >= Math.floor(MAX_CHARS * 0.9)) charCounter.classList.add('warn');
-            textSubmit.disabled = len === 0;
-            }
+            <script>
+                const MAX_UPLOAD_MB = Number(document.body.dataset.maxUploadMb || '5');
+                const MAX_UPLOAD_BYTES = MAX_UPLOAD_MB * 1024 * 1024;
+                const MAX_CHARS = Number(document.body.dataset.maxChars || '10000');
 
-            // contador e prévia enquanto digita
-            textInput.addEventListener('input', () => {
-            updateCounter();
-            const val = textInput.value || '';
-            showPreview(val.trim() ? val : '', 'Fonte: Texto colado');
-            });
-            updateCounter();
+                // Utils
+                function escapeHtml(s){
+                    return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+                }
+                async function postForm(url, form) {
+                    const res = await fetch(url, { method: "POST", body: new FormData(form) });
+                    const ct = res.headers.get("content-type") || "";
+                    let data;
+                    if (ct.includes("application/json")) data = await res.json();
+                    else {
+                    const text = await res.text();
+                    try { data = JSON.parse(text); }
+                    catch { throw new Error(text || "Resposta não-JSON do servidor"); }
+                    }
+                    if (!res.ok) throw new Error(data.detail || JSON.stringify(data));
+                    return data;
+                }
 
-            textForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const text = textInput.value || '';
-            if (!text.trim()) {
-                resultCard.innerHTML = '<div class="muted">Por favor, cole algum texto.</div>';
-                return;
-            }
-            textSubmit.disabled = true;
-            resultCard.innerHTML = '<div class="muted">Classificando…</div>';
-            try {
-                const data = await postForm('/classify-text', textForm);
-                out.textContent = JSON.stringify(data, null, 2);
-                renderResult(data, 'Texto colado');
-            } catch (err) {
-                const msg = String(err?.message || err);
-                resultCard.innerHTML = `<div class="muted">Erro: ${escapeHtml(msg)}</div>`;
-                out.textContent = "Erro: " + msg;
-                console.error(err);
-            } finally {
-                textSubmit.disabled = false;
-            }
-            });
+                const out = document.getElementById('out');
+                const resultCard = document.getElementById('resultCard');
 
-            // FILE FORM
-            const fileForm = document.getElementById('fileForm');
-            const fileInput = document.getElementById('fileInput');
-            const fileSubmit = document.getElementById('fileSubmit');
+                /* ===== PRÉ-VISUALIZAÇÃO ===== */
+                const MAX_PREVIEW_CHARS = 4000;
+                const previewCard = document.getElementById('previewCard');
+                const previewMeta = document.getElementById('previewMeta');
+                const preview = document.getElementById('preview');
 
-            fileInput.addEventListener('change', () => {
-            fileSubmit.disabled = !fileInput.files?.length;
-            });
+                // adiciona um iframe para PDF, sem quebrar sua prévia de texto
+                let pdfFrame = document.getElementById('pdfFrame');
+                if (!pdfFrame) {
+                    pdfFrame = document.createElement('iframe');
+                    pdfFrame.id = 'pdfFrame';
+                    pdfFrame.title = 'Pré-visualização PDF';
+                    pdfFrame.style.display = 'none';
+                    pdfFrame.style.width = '100%';
+                    pdfFrame.style.height = '320px';
+                    pdfFrame.style.border = '1px solid var(--border)';
+                    pdfFrame.style.borderRadius = '8px';
+                    pdfFrame.style.background = '#fff';
+                    previewCard.querySelector('.actions')?.insertAdjacentHTML('afterbegin',
+                    `<a id="openPdfTab" href="#" target="_blank" rel="noopener" style="display:none">Abrir em nova aba</a>`);
+                    preview.parentElement.insertBefore(pdfFrame, preview.nextSibling);
+                }
+                const openPdfTab = document.getElementById('openPdfTab');
 
-            // pré-visualização ao escolher arquivo
-            fileInput.addEventListener('change', () => {
-            const f = fileInput.files?.[0];
-            if (!f) {
-                showPreview('', '');
-                return;
-            }
-            const metaBase = `Fonte: ${f.name} (${Math.round(f.size/1024)} KB)`;
-            const isTxt = f.type.startsWith('text/') || /\.txt$/i.test(f.name);
-            if (isTxt) {
-                const reader = new FileReader();
-                const blob = f.slice(0, MAX_PREVIEW_CHARS);
-                reader.onload = e => showPreview(String(e.target?.result || ''), metaBase);
-                reader.onerror = () => showPreview('[Falha ao ler o arquivo local para pré-visualização.]', metaBase);
-                reader.readAsText(blob);
-            } else {
-                showPreview('[Pré-visualização indisponível para este tipo de arquivo.]', metaBase);
-            }
-            });
+                let currentBlobUrl = null;
+                function clearObjectUrl() {
+                    if (currentBlobUrl) {
+                    URL.revokeObjectURL(currentBlobUrl);
+                    currentBlobUrl = null;
+                    }
+                }
 
-            fileForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const file = fileInput.files?.[0];
-            if (!file) {
-                resultCard.innerHTML = '<div class="muted">Selecione um arquivo.</div>';
-                return;
-            }
-            if (file.size > MAX_UPLOAD_BYTES) {
-                resultCard.innerHTML = `<div class="muted">Arquivo excede ${MAX_UPLOAD_MB} MB.</div>`;
-                out.textContent = `Erro: Arquivo excede ${MAX_UPLOAD_MB} MB (checagem do navegador).`;
-                return;
-            }
+                function showPreviewText(text, meta = '') {
+                    clearObjectUrl();
+                    if (!text) {
+                    previewCard.style.display = 'none';
+                    preview.textContent = '';
+                    previewMeta.textContent = '';
+                    pdfFrame.style.display = 'none';
+                    if (openPdfTab) { openPdfTab.style.display = 'none'; openPdfTab.removeAttribute('href'); }
+                    return;
+                    }
+                    if (text.length > MAX_PREVIEW_CHARS) {
+                    text = text.slice(0, MAX_PREVIEW_CHARS) + `\n\n[...pré-visualização truncada em ${MAX_PREVIEW_CHARS} caracteres]`;
+                    }
+                    preview.textContent = text;
+                    preview.style.display = 'block';
+                    pdfFrame.style.display = 'none';
+                    if (openPdfTab) { openPdfTab.style.display = 'none'; openPdfTab.removeAttribute('href'); }
+                    previewMeta.textContent = meta;
+                    previewCard.style.display = 'block';
+                }
 
-            fileSubmit.disabled = true;
-            resultCard.innerHTML = '<div class="muted">Classificando…</div>';
-            try {
-                const data = await postForm('/classify-file', fileForm);
-                out.textContent = JSON.stringify(data, null, 2);
-                renderResult(data, file.name || 'Arquivo enviado');
-            } catch (err) {
-                const msg = String(err?.message || err);
-                resultCard.innerHTML = `<div class="muted">Erro: ${escapeHtml(msg)}</div>`;
-                out.textContent = "Erro: " + msg;
-                console.error(err);
-            } finally {
-                fileSubmit.disabled = false;
-            }
-        });
-    </script>
-</body>
+                function showPreviewPdf(file, meta = '') {
+                    // cria URL local e mostra no iframe
+                    clearObjectUrl();
+                    currentBlobUrl = URL.createObjectURL(file);
+                    // alguns viewers aceitam hash de visualização
+                    const viewerUrl = `${currentBlobUrl}#view=FitH`;
+                    pdfFrame.src = viewerUrl;
+                    pdfFrame.style.display = 'block';
+                    preview.style.display = 'none';
+                    if (openPdfTab) { openPdfTab.href = currentBlobUrl; openPdfTab.style.display = 'inline-block'; }
+                    previewMeta.textContent = meta;
+                    previewCard.style.display = 'block';
+                }
+
+                document.getElementById('clearPreviewBtn')?.addEventListener('click', () => {
+                    pdfFrame.src = 'about:blank';
+                    showPreviewText('', '');
+                });
+
+                function renderResult(data, metaTitle) {
+                    const cat = (data.category || '').toLowerCase();
+                    const subtype = data.subtype || '—';
+                    const conf = Number(data.confidence ?? 0);
+                    const confPct = Math.max(0, Math.min(100, Math.round(conf * 100)));
+                    const reasons = (data.reasons || []).map(r => `<li>${escapeHtml(r)}</li>`).join('');
+
+                    resultCard.innerHTML = `
+                        <div class="row-space">
+                        <span class="badge ${cat}">${escapeHtml(data.category)}</span>
+                        <span class="chip">${escapeHtml(subtype)}</span>
+                        ${metaTitle ? `<span class="muted">• Fonte: ${escapeHtml(metaTitle)}</span>` : ``}
+                        </div>
+
+                        <div class="muted">${escapeHtml(data.summary || '')}</div>
+
+                        <div class="progress" title="Confiança"><div style="width:${confPct}%"></div></div>
+                        <div class="muted">Confiança: ${confPct}%</div>
+
+                        ${reasons ? `<div class="muted" style="margin-top:6px">Motivos:</div><ul class="reasons">${reasons}</ul>` : ``}
+
+                        <div class="reply">
+                        <label for="replyText">Resposta sugerida</label>
+                        <textarea id="replyText" readonly>${escapeHtml(data.suggested_reply || '')}</textarea>
+                        <div class="actions">
+                            <button id="copyBtn" type="button">Copiar</button>
+                            <button id="clearBtn" type="button">Limpar</button>
+                        </div>
+                        </div>
+                    `;
+
+                    const copyBtn = document.getElementById('copyBtn');
+                    copyBtn?.addEventListener('click', () => {
+                    const txt = document.getElementById('replyText')?.value || '';
+                    navigator.clipboard.writeText(txt);
+                    copyBtn.textContent = 'Copiado!';
+                    setTimeout(() => (copyBtn.textContent = 'Copiar'), 1200);
+                    });
+
+                    document.getElementById('clearBtn')?.addEventListener('click', () => {
+                    resultCard.innerHTML = '';
+                    out.textContent = '{}';
+                    });
+                }
+
+                // TEXT FORM
+                const textForm = document.getElementById('textForm');
+                const textInput = document.getElementById('textInput');
+                const textSubmit = document.getElementById('textSubmit');
+                const charCounter = document.getElementById('charCounter');
+
+                function updateCounter() {
+                    const len = (textInput.value || '').length;
+                    charCounter.textContent = `${len} / ${MAX_CHARS}`;
+                    charCounter.classList.remove('warn','max');
+                    if (len >= MAX_CHARS) charCounter.classList.add('max');
+                    else if (len >= Math.floor(MAX_CHARS * 0.9)) charCounter.classList.add('warn');
+                    textSubmit.disabled = len === 0;
+                }
+
+                // contador + prévia de texto enquanto digita
+                textInput.addEventListener('input', () => {
+                    updateCounter();
+                    const val = textInput.value || '';
+                    showPreviewText(val.trim() ? val : '', 'Fonte: Texto colado');
+                });
+                updateCounter();
+
+                textForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const text = textInput.value || '';
+                    if (!text.trim()) {
+                    resultCard.innerHTML = '<div class="muted">Por favor, cole algum texto.</div>';
+                    return;
+                    }
+                    textSubmit.disabled = true;
+                    resultCard.innerHTML = '<div class="muted">Classificando…</div>';
+                    try {
+                    const data = await postForm('/classify-text', textForm);
+                    out.textContent = JSON.stringify(data, null, 2);
+                    renderResult(data, 'Texto colado');
+                    } catch (err) {
+                    const msg = String(err?.message || err);
+                    resultCard.innerHTML = `<div class="muted">Erro: ${escapeHtml(msg)}</div>`;
+                    out.textContent = "Erro: " + msg;
+                    console.error(err);
+                    } finally {
+                    textSubmit.disabled = false;
+                    }
+                });
+
+                // FILE FORM
+                const fileForm = document.getElementById('fileForm');
+                const fileInput = document.getElementById('fileInput');
+                const fileSubmit = document.getElementById('fileSubmit');
+
+                fileInput.addEventListener('change', () => {
+                    fileSubmit.disabled = !fileInput.files?.length;
+                });
+
+                // pré-visualização ao escolher arquivo (TXT ou PDF)
+                fileInput.addEventListener('change', () => {
+                    const f = fileInput.files?.[0];
+                    if (!f) {
+                    showPreviewText('', '');
+                    return;
+                    }
+                    const metaBase = `Fonte: ${f.name} (${Math.round(f.size/1024)} KB)`;
+                    const isTxt = f.type.startsWith('text/') || /\.txt$/i.test(f.name);
+                    const isPdf = f.type === 'application/pdf' || /\.pdf$/i.test(f.name);
+
+                    if (isTxt) {
+                    const reader = new FileReader();
+                    const blob = f.slice(0, MAX_PREVIEW_CHARS);
+                    reader.onload = e => showPreviewText(String(e.target?.result || ''), metaBase);
+                    reader.onerror = () => showPreviewText('[Falha ao ler o arquivo local para pré-visualização.]', metaBase);
+                    reader.readAsText(blob);
+                    } else if (isPdf) {
+                    showPreviewPdf(f, metaBase + ' • (PDF)');
+                    } else {
+                    showPreviewText('[Pré-visualização indisponível para este tipo de arquivo.]', metaBase);
+                    }
+                });
+
+                fileForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const file = fileInput.files?.[0];
+                    if (!file) {
+                    resultCard.innerHTML = '<div class="muted">Selecione um arquivo.</div>';
+                    return;
+                    }
+                    if (file.size > MAX_UPLOAD_BYTES) {
+                    resultCard.innerHTML = `<div class="muted">Arquivo excede ${MAX_UPLOAD_MB} MB.</div>`;
+                    out.textContent = `Erro: Arquivo excede ${MAX_UPLOAD_MB} MB (checagem do navegador).`;
+                    return;
+                    }
+
+                    fileSubmit.disabled = true;
+                    resultCard.innerHTML = '<div class="muted">Classificando…</div>';
+                    try {
+                    const data = await postForm('/classify-file', fileForm);
+                    out.textContent = JSON.stringify(data, null, 2);
+                    renderResult(data, file.name || 'Arquivo enviado');
+                    } catch (err) {
+                    const msg = String(err?.message || err);
+                    resultCard.innerHTML = `<div class="muted">Erro: ${escapeHtml(msg)}</div>`;
+                    out.textContent = "Erro: " + msg;
+                    console.error(err);
+                    } finally {
+                    fileSubmit.disabled = false;
+                    }
+                });
+
+                // revoga blob URL ao sair da página
+                window.addEventListener('beforeunload', clearObjectUrl);
+            </script>
+    </body>
 </html>
