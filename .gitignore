@@ -1,11 +1,28 @@
-# Python-generated files
 __pycache__/
-*.py[oc]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+.coverage.*
+htmlcov/
+
 build/
 dist/
 wheels/
 *.egg-info
-.env
 
-# Virtual environments
+.env
+.env.*
 .venv
+.python-version
+
+uv.lock
+
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+.ipynb_checkpoints/
+
+*.py[oc]
+*.log

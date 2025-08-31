@@ -1,8 +1,9 @@
-from pydantic import BaseSettings, Field
+from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import List, Set
 
 class Settings(BaseSettings):
-    GEMINI_API_KEY: str = Field(..., env="GEMINI_API_KEY")
+    GEMINI_API_KEY: str
 
     MAX_CHARS: int = 10_000
     MAX_UPLOAD_MB: int = 5
@@ -12,13 +13,15 @@ class Settings(BaseSettings):
 
     @property
     def ALLOWED_ORIGINS(self) -> List[str]:
-        return [o.strip() for o in silf.ALLOWED_ORIGINS_RAW.split(",") if o.strip()]
+        return [o.strip() for o in self.ALLOWED_ORIGINS_RAW.split(",") if o.strip()]
 
-    ALLOWED_MIME: Set(str) = {"text/plain", "application/pdf"}
-    ALLOWERD_EXT: Set(str) = {".txt", ".pdf"}
+    ALLOWED_MIME: set[str] = {"text/plain", "application/pdf"}
+    ALLOWED_EXT: set[str] = {".txt", ".pdf"}
 
-    class Config:
-        env_file = ".env"
-        case_sensitive = True
+    @property
+    def MAX_UPLOAD_BYTES(self) -> int:
+        return self.MAX_UPLOAD_MB * 1024 * 1024
+
+    model_config = SettingsConfigDict(env_file = ".env", case_sensitive = True)
 
 settings = Settings()
