@@ -16,7 +16,10 @@ def index(request: Request):
     return templates.TemplateResponse(
         request,
         "index.html",
-        {"max_upload_mb": settings.MAX_UPLOAD_MB}
+        {
+            "max_upload_mb": settings.MAX_UPLOAD_MB,
+            "max_chars": settings.MAX_CHARS,
+        },
     )
 
 @router.get("/favicon.ico", include_in_schema = False)

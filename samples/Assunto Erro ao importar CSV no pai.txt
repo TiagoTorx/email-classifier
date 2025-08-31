@@ -1,0 +1,6 @@
+Assunto: Erro ao importar CSV no painel
+Mensagem:
+Bom dia, suporte,
+Ao tentar importar um CSV recebo “Linha 37: data inválida”. Seguem passos: Login > Importar > Seleciono arquivo > Falha. Arquivo em anexo. Podem verificar?
+Obrigado,
+Felipe
